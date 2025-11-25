@@ -1,0 +1,69 @@
+---
+title: "Atividade Dolar"
+author: "Diogo"
+date: "2025-11-24"
+categories: [python, código, dolar]
+image: "dolar.jpg"
+jupyter: python3
+---
+
+Neste post é possível ver o código da cotação do dolar de 05/2010.
+
+```{python}
+import requests
+import pandas as pd
+import plotly.express as px
+import calendar
+from datetime import datetime
+
+def obter_cotacao_dolar(periodo: str):
+    #1: converter "MMYYYY" em datas inicial e final
+    data_inicial = datetime.strptime(periodo, "%m%Y")
+    ultimo_dia_mes = calendar.monthrange(data_inicial.year, data_inicial.month)[1]
+    data_final = data_inicial.replace(day=ultimo_dia_mes)
+
+    # Formatar para API
+    inicio_formatado = data_inicial.strftime("%m-%d-%Y")
+    fim_formatado = data_final.strftime("%m-%d-%Y")
+
+    #2: chamada à API PTAX
+    endpoint = (
+        "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/"
+        f"CotacaoDolarPeriodo(dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)?"
+        f"@dataInicial='{inicio_formatado}'&@dataFinalCotacao='{fim_formatado}'&$top=1000&$format=json"
+    )
+    resposta_api = requests.get(endpoint)
+    dados = resposta_api.json().get("value", [])
+
+    if not dados:
+        print("Não foram encontrados dados para o período informado.")
+        return
+
+    #3: organizar os dados em DataFrame
+    tabela = pd.DataFrame(dados)
+    tabela["dataHoraCotacao"] = pd.to_datetime(tabela["dataHoraCotacao"])
+    tabela["dia"] = tabela["dataHoraCotacao"].dt.date
+    tabela = tabela.sort_values("dia")
+
+    # Criar série diária completa
+    intervalo_dias = pd.date_range(data_inicial, data_final, freq="D")
+    tabela_completa = pd.DataFrame({"dia": intervalo_dias.date})
+    tabela_completa = tabela_completa.merge(tabela[["dia", "cotacaoCompra"]], on="dia", how="left")
+
+    # Tratar valores ausentes
+    tabela_completa["cotacaoCompra"] = pd.to_numeric(tabela_completa["cotacaoCompra"], errors="coerce")
+    tabela_completa["cotacaoCompra"].fillna(method="ffill", inplace=True)
+
+    #4: gerar gráfico
+    grafico = px.line(
+        tabela_completa,
+        x="dia",
+        y="cotacaoCompra",
+        title=f"Cotação do Dólar - {periodo}",
+        labels={"dia": "Data", "cotacaoCompra": "Valor (R$)"}
+    )
+    grafico.show()
+
+# Exemplo de execução
+obter_cotacao_dolar("052010")
+```

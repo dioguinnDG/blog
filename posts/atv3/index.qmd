@@ -1,0 +1,64 @@
+---
+title: "Atividade Regressão Linear"
+author: "Diogo"
+date: "2025-11-24"
+categories: [python, código, regressão linear]
+image: "Regressao-linear.png"
+jupyter: python3
+---
+
+Neste post é possível ver o código da regressão linear.
+
+```{python}
+import numpy as np
+import pandas as pd
+import plotly.express as px
+
+#1: Carregar dados de entrada (anos de estudo e salário)
+valores_x = np.loadtxt("X.txt")
+valores_y = np.loadtxt("Y.txt")
+
+# Ajustar formato para vetor coluna
+anos = valores_x.reshape(-1, 1)
+salarios = valores_y.reshape(-1, 1)
+
+#2: Construir matriz para regressão linear
+matriz_regressao = np.column_stack((np.ones(len(anos)), anos))
+parametros = np.linalg.inv(matriz_regressao.T @ matriz_regressao) @ (matriz_regressao.T @ salarios)
+
+a_intercepto = float(parametros[0])   # intercepto da reta
+b_coeficiente = float(parametros[1])  # inclinação da reta
+
+print("Parâmetros calculados:")
+print(f"Intercepto (a) = {a_intercepto}")
+print(f"Inclinação (b) = {b_coeficiente}")
+
+#3: Criar DataFrame com pontos e reta ajustada
+dados_plot = pd.DataFrame({
+    "anos": valores_x,
+    "salarios": valores_y,
+    "ajuste": a_intercepto + b_coeficiente * valores_x
+})
+
+#4: Construir gráfico interativo
+grafico_disp = px.scatter(
+    dados_plot,
+    x="anos",
+    y="salarios",
+    title="Correlação entre Anos de Estudo e Salário",
+    labels={"anos": "Anos de Estudo", "salarios": "Salário (R$)"}
+)
+
+# Adicionar linha da regressão
+grafico_disp.add_traces(
+    px.line(
+        dados_plot,
+        x="anos",
+        y="ajuste"
+    ).data
+)
+
+# Exibição do gráfico
+grafico_disp.show()
+
+```
